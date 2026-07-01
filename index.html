@@ -239,6 +239,7 @@ function pickFoto(input, qual){
       const data = c.toDataURL('image/jpeg', 0.7);
       fotos[qual] = data;
       document.getElementById(BOXES[qual]).innerHTML = `<img src="${data}" alt="foto ${qual}">`;
+      if(qual==='extra') ocrNumeroDoExtra(data);
     };
     img.src = e.target.result;
   };
@@ -537,6 +538,52 @@ function fieldVal(id){
   const el = document.getElementById(id);
   if(el && el.tagName==='SELECT'){ let v = el.value; if(v==='__outro__'){ const o=document.getElementById(id+'Outro'); v = o?o.value:''; } return (v||'').trim(); }
   return ((el && el.value)||'').trim();
+}
+
+// ---------- OCR do número do talão (foto do controle) ----------
+let _tess;
+function loadTesseract(){
+  if(_tess) return _tess;
+  _tess = new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    s.onload=res; s.onerror=rej; document.head.appendChild(s);
+  });
+  return _tess;
+}
+function preprocRed(dataUrl){
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{
+      const s=Math.min(1100/img.width,1), w=Math.round(img.width*s), h=Math.round(img.height*s);
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      const ctx=c.getContext('2d'); ctx.drawImage(img,0,0,w,h);
+      const d=ctx.getImageData(0,0,w,h), p=d.data;
+      for(let i=0;i<p.length;i+=4){
+        const r=p[i],g=p[i+1],b=p[i+2];
+        const red = r>110 && (r-g)>40 && (r-b)>40;
+        const v = red?0:255; p[i]=p[i+1]=p[i+2]=v;
+      }
+      ctx.putImageData(d,0,0); res(c.toDataURL('image/png'));
+    };
+    img.src=dataUrl;
+  });
+}
+async function ocrNumeroDoExtra(dataUrl){
+  if(val('numero')) return;
+  try{
+    await loadTesseract();
+    if(typeof Tesseract==='undefined') return;
+    toast('Lendo o número do talão…');
+    const prep = await preprocRed(dataUrl);
+    const { data } = await Tesseract.recognize(prep, 'eng', { tessedit_char_whitelist:'0123456789' });
+    const nums = (data.text||'').match(/\d{4,7}/g);
+    if(nums && nums.length){
+      const num = nums.sort((a,b)=>b.length-a.length)[0];
+      const el=document.getElementById('numero');
+      if(!el.value){ el.value = num.length<6?num.padStart(6,'0'):num; atualizarNumHead(); toast('Nº detectado: '+el.value); }
+    } else { toast('Não li o número; digite manual.'); }
+  }catch(e){ /* offline/falha: número manual */ }
 }
 
 // ---------- start ----------
