@@ -56,7 +56,9 @@
   .rec .top{ display:flex; justify-content:space-between; font-weight:bold; color:var(--azul2); }
   .rec .sub{ font-size:12px; color:var(--cinza); margin-top:2px; }
   .rec .del{ color:var(--vermelho); font-size:12px; float:right; text-decoration:none; }
-  .exp{ display:flex; gap:8px; margin:6px 0 14px; }
+  .rec .acts{ display:flex; gap:6px; margin-top:8px; }
+  .rec .acts button{ flex:1; font-size:12px; font-weight:bold; padding:8px 4px; border:1px solid var(--azul); background:#fff; color:var(--azul); border-radius:8px; }
+  .exp{ display:flex; gap:8px; margin:6px 0 14px; flex-wrap:wrap; }
   .exp button{ flex:1; background:var(--azul); color:#fff; border:none; border-radius:10px; padding:12px; font-weight:bold; font-size:14px; }
   .exp button.sec{ background:#fff; color:var(--azul); border:1px solid var(--azul); }
   .empty{ text-align:center; color:var(--cinza); padding:30px 10px; font-size:14px; }
@@ -170,6 +172,7 @@
   <main id="viewList" class="hidden">
     <div class="exp">
       <button onclick="exportCSV()">Exportar CSV</button>
+      <button onclick="enviarCSVtodos()">Enviar CSV (todos)</button>
       <button class="sec" onclick="exportFotos()">Exportar fotos</button>
     </div>
     <div id="recs"></div>
@@ -183,6 +186,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="xlsx.full.min.js"></script>
+<script src="jspdf.umd.min.js"></script>
 <script>
 const CESTOS = 9;
 let central = '';
@@ -216,6 +220,7 @@ function txStore(mode){ return db.transaction('controles', mode).objectStore('co
 function addRec(rec){ return new Promise((res,rej)=>{ const r=txStore('readwrite').add(rec); r.onsuccess=()=>res(r.result); r.onerror=rej; }); }
 function allRecs(){ return new Promise((res,rej)=>{ const r=txStore('readonly').getAll(); r.onsuccess=()=>res(r.result); r.onerror=rej; }); }
 function delRec(id){ return new Promise((res,rej)=>{ const r=txStore('readwrite').delete(id); r.onsuccess=()=>res(); r.onerror=rej; }); }
+function getRec(id){ return new Promise((res,rej)=>{ const r=txStore('readonly').get(id); r.onsuccess=()=>res(r.result); r.onerror=rej; }); }
 
 // ---------- fotos ----------
 function pickFoto(input, qual){
@@ -322,17 +327,20 @@ async function refreshList(){
       <div class="top"><span>Nº ${r.numero||'—'}</span></div>
       <div class="sub">${r.cliente||'—'} · ${fmtData(r.data)} · ${r.placa||'—'}</div>
       <div class="sub">Atual: cestos ${resumoCestos(r.atu)} · ${r.fotoAntes?'📷antes ':''}${r.fotoDepois?'📷depois ':''}${r.fotoMec?'⚙️mec ':''}${r.fotoEle?'🔢ele ':''}${r.fotoExtra?'➕extra':''}</div>
+      <div class="acts">
+        <button onclick="verPdf(${r.id})">Ver PDF</button>
+        <button onclick="sharePdf(${r.id})">Enviar PDF</button>
+        <button onclick="shareCsvRec(${r.id})">Enviar CSV</button>
+      </div>
     </div>`).join('');
 }
 function resumoCestos(o){ const v=[]; for(let i=1;i<=CESTOS;i++){ if(o['c'+i]) v.push(o['c'+i]); } return v.join('/')||'—'; }
 function fmtData(d){ if(!d) return '—'; const p=String(d).split('-'); return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d; }
 async function remover(id){ if(confirm('Excluir este controle?')){ await delRec(id); await refreshList(); await sugerirNumero(); } }
 
-// ---------- exportar CSV ----------
+// ---------- exportar / CSV ----------
 function csvCell(v){ v=(v==null?'':String(v)); if(/[;"\n]/.test(v)){ v='"'+v.replace(/"/g,'""')+'"'; } return v; }
-async function exportCSV(){
-  const recs = await allRecs();
-  if(!recs.length){ toast('Nada para exportar'); return; }
+function csvString(recs){
   const head = ['Numero','Data','Cliente','Placa','HoraInicial','HoraFinal','LeituraAtual','LeituraMecanico'];
   for(let i=1;i<=CESTOS;i++) head.push('Ant_Cesto'+i);
   head.push('Ant_Carreta','Ant_Est1','Ant_Est2','Ant_Est3');
@@ -351,9 +359,106 @@ async function exportCSV(){
     row.push(r.fotoMec?base+'_medidor_mec.jpg':'', r.fotoEle?base+'_medidor_ele.jpg':'', r.fotoExtra?base+'_extra.jpg':'', r.obsExtra||'');
     lines.push(row.map(csvCell).join(';'));
   });
-  const csv = '﻿' + lines.join('\r\n');
-  baixar(new Blob([csv],{type:'text/csv;charset=utf-8'}), 'controles_medicao_'+hoje()+'.csv');
+  return '﻿' + lines.join('\r\n');
+}
+async function exportCSV(){
+  const recs = await allRecs();
+  if(!recs.length){ toast('Nada para exportar'); return; }
+  baixar(new Blob([csvString(recs)],{type:'text/csv;charset=utf-8'}), 'controles_medicao_'+hoje()+'.csv');
   toast(recs.length+' controle(s) exportado(s)');
+}
+async function enviarCSVtodos(){
+  const recs = await allRecs();
+  if(!recs.length){ toast('Nada para enviar'); return; }
+  const blob = new Blob([csvString(recs)],{type:'text/csv'});
+  const file = new File([blob], 'controles_medicao_'+hoje()+'.csv', {type:'text/csv'});
+  await shareFiles([file], 'Controles de Medição');
+}
+
+// ---------- PDF ----------
+function buildPdf(r){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  const L=15, R=195, W=180;
+  const nz = v => (v==null||v==='')?'—':String(v);
+  doc.setFillColor(24,95,165); doc.rect(L,12,W,12,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(14);
+  doc.text('LOGÁS  —  Controle de Medição', L+3, 20);
+  doc.setFontSize(12); doc.text('Nº '+nz(r.numero), R-2, 20, {align:'right'});
+  doc.setTextColor(20,20,20);
+  function kv(x,y,label,value){
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.text(label, x, y);
+    const w=doc.getTextWidth(label);
+    doc.setFont('helvetica','normal'); doc.text(' '+nz(value), x+w, y);
+  }
+  function sec(y,txt){
+    doc.setFillColor(231,240,251); doc.rect(L,y-4.2,W,6,'F');
+    doc.setTextColor(12,68,124); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+    doc.text(txt, L+2, y); doc.setTextColor(20,20,20);
+  }
+  function cestos(o){ const v=[]; for(let i=1;i<=9;i++){ if(o['c'+i]!=null && o['c'+i]!=='') v.push(i+': '+o['c'+i]); } return v.length? v.join('   ') : '—'; }
+  let y=33;
+  kv(L,y,'Cliente:',r.cliente); kv(110,y,'Data:',r.data);
+  y+=7; kv(L,y,'Placa:',r.placa); kv(80,y,'Início:',r.hini); kv(140,y,'Fim:',r.hfim);
+  y+=7; kv(L,y,'Leitura (eletrônico):',r.leitura); kv(120,y,'Med. mecânico:',r.leituraMec);
+  y+=10; sec(y,'Pressão anterior'); y+=6;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10);
+  doc.text('Cestos: '+cestos(r.ant||{}), L, y); y+=5.5;
+  doc.text('Carreta: '+nz((r.ant||{}).carreta)+'    Estágios: '+nz((r.ant||{}).e1)+' / '+nz((r.ant||{}).e2)+' / '+nz((r.ant||{}).e3), L, y);
+  y+=10; sec(y,'Pressão atual'); y+=6;
+  doc.text('Cestos: '+cestos(r.atu||{}), L, y); y+=5.5;
+  doc.text('Carreta: '+nz((r.atu||{}).carreta)+'    Estágios: '+nz((r.atu||{}).e1)+' / '+nz((r.atu||{}).e2)+' / '+nz((r.atu||{}).e3), L, y);
+  y+=10; kv(L,y,'Central GNC em perfeito estado:', r.central);
+  y+=8; doc.setFont('helvetica','bold'); doc.text('Observações:', L, y); doc.setFont('helvetica','normal');
+  const obs = doc.splitTextToSize(nz(r.obs), W-30); doc.text(obs, L+28, y); y += obs.length*5 + 2;
+  if(r.obsExtra){ doc.setFont('helvetica','bold'); doc.text('Obs. foto extra:', L, y); doc.setFont('helvetica','normal');
+    const oe=doc.splitTextToSize(r.obsExtra, W-32); doc.text(oe, L+32, y); y+=oe.length*5+2; }
+  const fotos=[['fotoAntes','Antes'],['fotoDepois','Depois'],['fotoEle','Medidor eletrônico'],['fotoMec','Medidor mecânico'],['fotoExtra','Extra']].filter(f=>r[f[0]]);
+  if(fotos.length){
+    y+=6; if(y>250){ doc.addPage(); y=20; } sec(y,'Fotos'); y+=6;
+    let x=L; const fw=85, fh=60;
+    fotos.forEach(f=>{
+      if(y+fh>285){ doc.addPage(); y=20; x=L; }
+      try{ const fmt = r[f[0]].indexOf('image/png')>-1?'PNG':'JPEG'; doc.addImage(r[f[0]], fmt, x, y, fw, fh); }catch(e){ doc.rect(x,y,fw,fh); }
+      doc.setFontSize(8); doc.text(f[1], x, y+fh+4);
+      if(x===L){ x=L+90; } else { x=L; y+=fh+9; }
+    });
+    if(x!==L) y+=fh+9;
+  }
+  if(y>250){ doc.addPage(); y=20; }
+  const sy=Math.max(y,250)+4;
+  [['sigCliente','Ass. Cliente', L],['sigLogas','Ass. Logás', 110]].forEach(s=>{
+    if(r[s[0]]){ try{ doc.addImage(r[s[0]],'PNG', s[2], sy, 70, 22);}catch(e){} }
+    doc.line(s[2], sy+24, s[2]+70, sy+24); doc.setFontSize(8); doc.text(s[1], s[2], sy+28);
+  });
+  return doc;
+}
+async function verPdf(id){
+  const r = await getRec(id); if(!r) return;
+  const url = buildPdf(r).output('bloburl');
+  window.open(url, '_blank');
+}
+async function sharePdf(id){
+  const r = await getRec(id); if(!r) return;
+  const blob = buildPdf(r).output('blob');
+  const file = new File([blob], 'Controle_'+(r.numero||id)+'.pdf', {type:'application/pdf'});
+  await shareFiles([file], 'Controle de Medição '+(r.numero||''));
+}
+async function shareCsvRec(id){
+  const r = await getRec(id); if(!r) return;
+  const blob = new Blob([csvString([r])],{type:'text/csv'});
+  const file = new File([blob], 'controle_'+(r.numero||id)+'.csv', {type:'text/csv'});
+  await shareFiles([file], 'Controle de Medição '+(r.numero||''));
+}
+async function shareFiles(files, titulo){
+  try{
+    if(navigator.canShare && navigator.canShare({files})){
+      await navigator.share({files, title:titulo, text:titulo});
+      return;
+    }
+  }catch(e){ if(e && e.name==='AbortError') return; }
+  files.forEach(f=> baixar(f, f.name));
+  toast('Compartilhar direto indisponível aqui; arquivo baixado.');
 }
 async function exportFotos(){
   const recs = await allRecs();

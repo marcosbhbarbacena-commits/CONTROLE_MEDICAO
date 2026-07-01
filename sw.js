@@ -1,5 +1,5 @@
-const CACHE = 'logas-medicao-v2';
-const ASSETS = ['index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'xlsx.full.min.js', 'cadastros.xlsx'];
+const CACHE = 'logas-medicao-v3';
+const ASSETS = ['index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'xlsx.full.min.js', 'jspdf.umd.min.js', 'cadastros.xlsx'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
@@ -18,4 +18,3 @@ self.addEventListener('fetch', e => {
       const copy = res.clone();
       caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
       return res;
-    }).catch(() => 
