@@ -290,9 +290,18 @@ function coletar(){
 }
 async function salvar(){
   const rec = coletar();
-  if(!rec.numero && !rec.cliente){ toast('Preencha ao menos Nº e Cliente'); return; }
+  if(!rec.cliente){ toast('Selecione o Cliente'); return; }
+  if(!rec.numero){
+    const sug = await proximoNumero();
+    if(sug){
+      if(confirm('O número do talão não foi lido.\n\nUsar o número sugerido '+sug+'?\n\nOK = salvar com '+sug+'\nCancelar = voltar e digitar')){ rec.numero = sug; }
+      else { document.getElementById('numero').focus(); return; }
+    } else {
+      if(!confirm('O número do talão está em branco.\n\nSalvar assim mesmo, sem número?')){ document.getElementById('numero').focus(); return; }
+    }
+  }
   await addRec(rec);
-  toast('Controle salvo ✓');
+  toast('Controle salvo ✓  (Nº '+(rec.numero||'—')+')');
   novo(true);
   await refreshList();
 }
@@ -304,17 +313,14 @@ function novo(keepData){
   fotos = { antes:null, depois:null, mec:null, ele:null, extra:null };
   Object.keys(BOXES).forEach(q => document.getElementById(BOXES[q]).innerHTML = `<span>${BOXTXT[q]}</span>`);
   setCentral(''); clearSig('sigCliente'); clearSig('sigLogas');
-  sugerirNumero();
+  atualizarNumHead();
   if(!keepData) showTab('form');
 }
 
-async function sugerirNumero(){
+async function proximoNumero(){
   const recs = await allRecs();
-  if(recs.length){
-    const nums = recs.map(r=>parseInt(r.numero,10)).filter(n=>!isNaN(n));
-    if(nums.length){ const prox=Math.max(...nums)+1; document.getElementById('numero').value=String(prox).padStart(6,'0'); }
-  }
-  atualizarNumHead();
+  const nums = recs.map(r=>parseInt(r.numero,10)).filter(n=>!isNaN(n));
+  return nums.length ? String(Math.max(...nums)+1).padStart(6,'0') : '';
 }
 function atualizarNumHead(){ const n=val('numero'); document.getElementById('numHead').textContent = n||'—'; }
 document.getElementById('numero').addEventListener('input', atualizarNumHead);
@@ -341,7 +347,7 @@ async function refreshList(){
 }
 function resumoCestos(o){ const v=[]; for(let i=1;i<=CESTOS;i++){ if(o['c'+i]) v.push(o['c'+i]); } return v.join('/')||'—'; }
 function fmtData(d){ if(!d) return '—'; const p=String(d).split('-'); return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d; }
-async function remover(id){ if(confirm('Excluir este controle?')){ await delRec(id); await refreshList(); await sugerirNumero(); } }
+async function remover(id){ if(confirm('Excluir este controle?')){ await delRec(id); await refreshList(); } }
 
 // ---------- exportar / CSV ----------
 function csvCell(v){ v=(v==null?'':String(v)); if(/[;"\n]/.test(v)){ v='"'+v.replace(/"/g,'""')+'"'; } return v; }
@@ -591,7 +597,6 @@ async function ocrNumeroDoExtra(dataUrl){
   await openDB();
   initSig('sigCliente'); initSig('sigLogas');
   await carregarCadastros();
-  await sugerirNumero();
   await refreshList();
   if('serviceWorker' in navigator && location.protocol.startsWith('http')){
     navigator.serviceWorker.register('sw.js').catch(()=>{});
