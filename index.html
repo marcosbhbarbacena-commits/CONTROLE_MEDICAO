@@ -86,7 +86,10 @@
   </div>
 
   <main id="viewForm">
-    <div class="field"><label>Nº do talão</label><input id="numero" inputmode="numeric" placeholder="017683"></div>
+    <div class="row field">
+      <div><label>Nº do talão</label><input id="numero" inputmode="numeric" placeholder="017683"></div>
+      <div><label>NF</label><input id="nf" inputmode="numeric"></div>
+    </div>
     <div class="row field">
       <div><label>Cliente</label><select id="cliente" onchange="toggleOutro('cliente')"><option value="">— selecionar —</option><option value="__outro__">Outro (digitar)</option></select><input id="clienteOutro" class="hidden" placeholder="Novo cliente" style="margin-top:6px"></div>
       <div style="max-width:130px"><label>Data</label><input id="data" type="date"></div>
@@ -309,7 +312,7 @@ function coletar(){
   const ant={}, atu={};
   for(let i=1;i<=CESTOS;i++){ ant['c'+i]=val('antC'+i); atu['c'+i]=val('atuC'+i); }
   return {
-    numero:val('numero'), cliente:fieldVal('cliente'), data:val('data'), placa:fieldVal('placa').toUpperCase(),
+    numero:val('numero'), nf:val('nf'), cliente:fieldVal('cliente'), data:val('data'), placa:fieldVal('placa').toUpperCase(),
     hini:val('hini'), hfim:val('hfim'), leitura:val('leitura'), leituraMec:val('leituraMec'),
     ant:{...ant, carreta:fieldVal('antCarreta'), e1:val('antE1'), e2:val('antE2'), e3:val('antE3')},
     atu:{...atu, carreta:fieldVal('atuCarreta'), e1:val('atuE1'), e2:val('atuE2'), e3:val('atuE3')},
@@ -346,7 +349,7 @@ async function salvar(){
   }
 }
 function novo(keepData){
-  ['numero','cliente','placa','hini','hfim','leitura','leituraMec','obs','obsExtra','antCarreta','antE1','antE2','antE3','atuCarreta','atuE1','atuE2','atuE3'].forEach(id=>document.getElementById(id).value='');
+  ['numero','nf','cliente','placa','hini','hfim','leitura','leituraMec','obs','obsExtra','antCarreta','antE1','antE2','antE3','atuCarreta','atuE1','atuE2','atuE3'].forEach(id=>document.getElementById(id).value='');
   const _aC=document.getElementById('assinanteCliente'); if(_aC) _aC.value='';
   ['clienteOutro','placaOutro','antCarretaOutro','atuCarretaOutro'].forEach(id=>{ const o=document.getElementById(id); if(o){ o.value=''; o.classList.add('hidden'); } });
   for(let i=1;i<=CESTOS;i++){ document.getElementById('antC'+i).value=''; document.getElementById('atuC'+i).value=''; }
@@ -393,7 +396,7 @@ async function remover(id){ if(confirm('Excluir este controle?')){ await delRec(
 // ---------- exportar / CSV ----------
 function csvCell(v){ v=(v==null?'':String(v)); if(/[;"\n]/.test(v)){ v='"'+v.replace(/"/g,'""')+'"'; } return v; }
 function csvString(recs){
-  const head = ['Numero','Data','Cliente','Placa','HoraInicial','HoraFinal','LeituraAtual','LeituraMecanico'];
+  const head = ['Numero','NF','Data','Cliente','Placa','HoraInicial','HoraFinal','LeituraAtual','LeituraMecanico'];
   for(let i=1;i<=CESTOS;i++) head.push('Ant_Cesto'+i);
   head.push('Ant_Carreta','Ant_Est1','Ant_Est2','Ant_Est3');
   for(let i=1;i<=CESTOS;i++) head.push('Atu_Cesto'+i);
@@ -401,7 +404,7 @@ function csvString(recs){
   head.push('CentralOK','Observacoes','Registrado','FotoAntes','FotoDepois','FotoMedidorMecanico','FotoMedidorEletronico','FotoExtra','ObsFotoExtra','AssinanteCliente');
   const lines = [head.join(';')];
   recs.forEach(r=>{
-    const row = [r.numero, fmtData(r.data), r.cliente, r.placa, r.hini, r.hfim, r.leitura, r.leituraMec];
+    const row = [r.numero, r.nf, fmtData(r.data), r.cliente, r.placa, r.hini, r.hfim, r.leitura, r.leituraMec];
     for(let i=1;i<=CESTOS;i++) row.push(r.ant['c'+i]);
     row.push(r.ant.carreta, r.ant.e1, r.ant.e2, r.ant.e3);
     for(let i=1;i<=CESTOS;i++) row.push(r.atu['c'+i]);
@@ -456,7 +459,7 @@ function drawControle(doc, r){
   let y=28;
   kv(c1,y,'Cliente:',r.cliente); kv(c2,y,'Data:',r.data); kv(c3,y,'Placa:',r.placa);
   y+=6; kv(c1,y,'Horário:', nz(r.hini)+'–'+nz(r.hfim)); kv(c2,y,'Leitura elet.:',r.leitura); kv(c3,y,'Med. mec.:',r.leituraMec);
-  y+=6; kv(c1,y,'Central OK:', r.central);
+  y+=6; kv(c1,y,'Central OK:', r.central); kv(c2,y,'NF:', r.nf);
   y+=6; sec(y,'Pressão anterior'); y+=5;
   doc.setFont('helvetica','normal'); doc.setFontSize(9);
   doc.text('Cestos: '+cestos(r.ant||{}), L, y); y+=4.5;
