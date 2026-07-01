@@ -221,6 +221,8 @@ function addRec(rec){ return new Promise((res,rej)=>{ const r=txStore('readwrite
 function allRecs(){ return new Promise((res,rej)=>{ const r=txStore('readonly').getAll(); r.onsuccess=()=>res(r.result); r.onerror=rej; }); }
 function delRec(id){ return new Promise((res,rej)=>{ const r=txStore('readwrite').delete(id); r.onsuccess=()=>res(); r.onerror=rej; }); }
 function getRec(id){ return new Promise((res,rej)=>{ const r=txStore('readonly').get(id); r.onsuccess=()=>res(r.result); r.onerror=rej; }); }
+let RECS = [];
+function recById(id){ return RECS.find(r=>r.id===id); }
 
 // ---------- fotos ----------
 function pickFoto(input, qual){
@@ -318,6 +320,7 @@ document.getElementById('numero').addEventListener('input', atualizarNumHead);
 // ---------- lista ----------
 async function refreshList(){
   const recs = await allRecs();
+  RECS = recs;
   document.getElementById('cnt').textContent = recs.length;
   const box = document.getElementById('recs');
   if(!recs.length){ box.innerHTML='<div class="empty">Nenhum controle salvo ainda.<br>Preencha e toque em Salvar.</div>'; return; }
@@ -433,19 +436,22 @@ function buildPdf(r){
   });
   return doc;
 }
-async function verPdf(id){
-  const r = await getRec(id); if(!r) return;
-  const url = buildPdf(r).output('bloburl');
-  window.open(url, '_blank');
+function verPdf(id){
+  const r = recById(id); if(!r) return;
+  const blob = buildPdf(r).output('blob');
+  const url = URL.createObjectURL(blob);
+  const w = window.open(url, '_blank');
+  if(!w){ baixar(blob, 'Controle_'+(r.numero||id)+'.pdf'); toast('Visualização bloqueada; PDF baixado.'); }
+  setTimeout(()=>URL.revokeObjectURL(url), 60000);
 }
 async function sharePdf(id){
-  const r = await getRec(id); if(!r) return;
+  const r = recById(id); if(!r) return;
   const blob = buildPdf(r).output('blob');
   const file = new File([blob], 'Controle_'+(r.numero||id)+'.pdf', {type:'application/pdf'});
   await shareFiles([file], 'Controle de Medição '+(r.numero||''));
 }
 async function shareCsvRec(id){
-  const r = await getRec(id); if(!r) return;
+  const r = recById(id); if(!r) return;
   const blob = new Blob([csvString([r])],{type:'text/csv'});
   const file = new File([blob], 'controle_'+(r.numero||id)+'.csv', {type:'text/csv'});
   await shareFiles([file], 'Controle de Medição '+(r.numero||''));
