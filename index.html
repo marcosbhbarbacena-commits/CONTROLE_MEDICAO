@@ -64,6 +64,13 @@
   .empty{ text-align:center; color:var(--cinza); padding:30px 10px; font-size:14px; }
   .toast{ position:fixed; left:50%; bottom:80px; transform:translateX(-50%); background:#12386b; color:#fff; padding:10px 16px; border-radius:20px; font-size:13px; z-index:50; opacity:0; transition:opacity .2s; }
   .toast.show{ opacity:1; }
+  .viewer{ position:fixed; inset:0; background:rgba(0,0,0,.82); display:flex; align-items:center; justify-content:center; z-index:100; padding:20px; }
+  .viewer.hidden{ display:none; }
+  .viewerBox{ max-width:100%; width:100%; max-width:440px; }
+  .viewerBox img{ width:100%; max-height:70vh; object-fit:contain; border-radius:8px; background:#fff; display:block; }
+  .viewerActs{ display:flex; gap:10px; margin-top:12px; }
+  .viewerActs button{ flex:1; padding:13px; border-radius:10px; border:none; font-weight:bold; font-size:14px; background:#fff; color:var(--azul); }
+  .viewerActs .vExcluir{ background:var(--vermelho); color:#fff; }
 </style>
 </head>
 <body>
@@ -116,12 +123,12 @@
     <div class="fotos">
       <div class="foto">
         <label>Eletrônico</label>
-        <label class="box" for="fEle" id="boxEle"><span>📷 Medidor eletrônico</span></label>
+        <div class="box" id="boxEle" onclick="fotoTap('ele')"><span>📷 Medidor eletrônico</span></div>
         <input id="fEle" type="file" accept="image/*" capture="environment" onchange="pickFoto(this,'ele')">
       </div>
       <div class="foto">
         <label>Mecânico</label>
-        <label class="box" for="fMec" id="boxMec"><span>📷 Medidor mecânico</span></label>
+        <div class="box" id="boxMec" onclick="fotoTap('mec')"><span>📷 Medidor mecânico</span></div>
         <input id="fMec" type="file" accept="image/*" capture="environment" onchange="pickFoto(this,'mec')">
       </div>
     </div>
@@ -130,19 +137,19 @@
     <div class="fotos">
       <div class="foto">
         <label>Antes</label>
-        <label class="box" for="fAntes" id="boxAntes"><span>📷 Foto antes</span></label>
+        <div class="box" id="boxAntes" onclick="fotoTap('antes')"><span>📷 Foto antes</span></div>
         <input id="fAntes" type="file" accept="image/*" capture="environment" onchange="pickFoto(this,'antes')">
       </div>
       <div class="foto">
         <label>Depois</label>
-        <label class="box" for="fDepois" id="boxDepois"><span>📷 Foto depois</span></label>
+        <div class="box" id="boxDepois" onclick="fotoTap('depois')"><span>📷 Foto depois</span></div>
         <input id="fDepois" type="file" accept="image/*" capture="environment" onchange="pickFoto(this,'depois')">
       </div>
     </div>
 
     <div class="sec">Foto extra (se precisar)</div>
     <div class="foto" style="margin-bottom:4px">
-      <label class="box" for="fExtra" id="boxExtra" style="height:120px"><span>📷 Foto extra</span></label>
+      <div class="box" id="boxExtra" onclick="fotoTap('extra')" style="height:120px"><span>📷 Foto extra</span></div>
       <input id="fExtra" type="file" accept="image/*" capture="environment" onchange="pickFoto(this,'extra')">
     </div>
     <div class="field"><input id="obsExtra" placeholder="Observação da foto extra"></div>
@@ -163,6 +170,7 @@
       <canvas id="sigCliente"></canvas>
       <div class="bar"><small>Ass. Cliente</small><a href="#" onclick="clearSig('sigCliente');return false">Limpar</a></div>
     </div>
+    <div class="field"><input id="assinanteCliente" placeholder="Nome de quem assinou (cliente)"></div>
     <div class="field assin">
       <canvas id="sigLogas"></canvas>
       <div class="bar"><small>Ass. Logás</small><a href="#" onclick="clearSig('sigLogas');return false">Limpar</a></div>
@@ -171,9 +179,8 @@
 
   <main id="viewList" class="hidden">
     <div class="exp">
-      <button onclick="exportCSV()">Exportar CSV</button>
+      <button onclick="enviarPDFtodos()">Enviar PDF (todos)</button>
       <button onclick="enviarCSVtodos()">Enviar CSV (todos)</button>
-      <button class="sec" onclick="exportFotos()">Exportar fotos</button>
     </div>
     <div id="recs"></div>
   </main>
@@ -184,6 +191,15 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
+<div id="viewer" class="viewer hidden" onclick="if(event.target.id==='viewer')fecharViewer()">
+  <div class="viewerBox">
+    <img id="viewerImg" alt="foto">
+    <div class="viewerActs">
+      <button class="vExcluir" onclick="excluirFotoAtual()">Excluir foto</button>
+      <button onclick="fecharViewer()">Fechar</button>
+    </div>
+  </div>
+</div>
 
 <script src="xlsx.full.min.js"></script>
 <script src="jspdf.umd.min.js"></script>
@@ -193,6 +209,22 @@ let central = '';
 let fotos = { antes:null, depois:null, mec:null, ele:null, extra:null };
 const BOXES = { antes:'boxAntes', depois:'boxDepois', mec:'boxMec', ele:'boxEle', extra:'boxExtra' };
 const BOXTXT = { antes:'📷 Foto antes', depois:'📷 Foto depois', mec:'📷 Medidor mecânico', ele:'📷 Medidor eletrônico', extra:'📷 Foto extra' };
+const INPUTS = { antes:'fAntes', depois:'fDepois', mec:'fMec', ele:'fEle', extra:'fExtra' };
+let viewerQual = null;
+function fotoTap(qual){
+  if(fotos[qual]) openViewer(qual);
+  else document.getElementById(INPUTS[qual]).click();
+}
+function openViewer(qual){
+  viewerQual = qual;
+  document.getElementById('viewerImg').src = fotos[qual];
+  document.getElementById('viewer').classList.remove('hidden');
+}
+function fecharViewer(){ document.getElementById('viewer').classList.add('hidden'); viewerQual=null; }
+function excluirFotoAtual(){
+  if(viewerQual){ fotos[viewerQual]=null; document.getElementById(BOXES[viewerQual]).innerHTML = '<span>'+BOXTXT[viewerQual]+'</span>'; }
+  fecharViewer();
+}
 
 function montarCestos(prefix, container){
   const el = document.getElementById(container);
@@ -281,7 +313,7 @@ function coletar(){
     hini:val('hini'), hfim:val('hfim'), leitura:val('leitura'), leituraMec:val('leituraMec'),
     ant:{...ant, carreta:fieldVal('antCarreta'), e1:val('antE1'), e2:val('antE2'), e3:val('antE3')},
     atu:{...atu, carreta:fieldVal('atuCarreta'), e1:val('atuE1'), e2:val('atuE2'), e3:val('atuE3')},
-    central, obs:val('obs'), obsExtra:val('obsExtra'),
+    central, obs:val('obs'), obsExtra:val('obsExtra'), assinanteCliente:val('assinanteCliente'),
     fotoAntes:fotos.antes, fotoDepois:fotos.depois,
     fotoMec:fotos.mec, fotoEle:fotos.ele, fotoExtra:fotos.extra,
     sigCliente:sigData('sigCliente'), sigLogas:sigData('sigLogas'),
@@ -300,13 +332,22 @@ async function salvar(){
       if(!confirm('O número do talão está em branco.\n\nSalvar assim mesmo, sem número?')){ document.getElementById('numero').focus(); return; }
     }
   }
-  await addRec(rec);
+  const id = await addRec(rec); rec.id = id;
   toast('Controle salvo ✓  (Nº '+(rec.numero||'—')+')');
+  const enviar = confirm('Controle salvo.\n\nEnviar agora pelo WhatsApp?');
   novo(true);
   await refreshList();
+  if(enviar){
+    try{
+      const blob = buildPdf(rec).output('blob');
+      const file = new File([blob], 'Controle_'+(rec.numero||id)+'.pdf', {type:'application/pdf'});
+      await shareFiles([file], 'Controle de Medição '+(rec.numero||''));
+    }catch(e){ toast('Não consegui abrir o envio.'); }
+  }
 }
 function novo(keepData){
   ['numero','cliente','placa','hini','hfim','leitura','leituraMec','obs','obsExtra','antCarreta','antE1','antE2','antE3','atuCarreta','atuE1','atuE2','atuE3'].forEach(id=>document.getElementById(id).value='');
+  const _aC=document.getElementById('assinanteCliente'); if(_aC) _aC.value='';
   ['clienteOutro','placaOutro','antCarretaOutro','atuCarretaOutro'].forEach(id=>{ const o=document.getElementById(id); if(o){ o.value=''; o.classList.add('hidden'); } });
   for(let i=1;i<=CESTOS;i++){ document.getElementById('antC'+i).value=''; document.getElementById('atuC'+i).value=''; }
   document.getElementById('data').value = new Date().toISOString().slice(0,10);
@@ -357,7 +398,7 @@ function csvString(recs){
   head.push('Ant_Carreta','Ant_Est1','Ant_Est2','Ant_Est3');
   for(let i=1;i<=CESTOS;i++) head.push('Atu_Cesto'+i);
   head.push('Atu_Carreta','Atu_Est1','Atu_Est2','Atu_Est3');
-  head.push('CentralOK','Observacoes','Registrado','FotoAntes','FotoDepois','FotoMedidorMecanico','FotoMedidorEletronico','FotoExtra','ObsFotoExtra');
+  head.push('CentralOK','Observacoes','Registrado','FotoAntes','FotoDepois','FotoMedidorMecanico','FotoMedidorEletronico','FotoExtra','ObsFotoExtra','AssinanteCliente');
   const lines = [head.join(';')];
   recs.forEach(r=>{
     const row = [r.numero, fmtData(r.data), r.cliente, r.placa, r.hini, r.hfim, r.leitura, r.leituraMec];
@@ -367,7 +408,7 @@ function csvString(recs){
     row.push(r.atu.carreta, r.atu.e1, r.atu.e2, r.atu.e3);
     const base = (r.numero||('rec'+r.id));
     row.push(r.central, r.obs, r.registrado, r.fotoAntes?base+'_antes.jpg':'', r.fotoDepois?base+'_depois.jpg':'');
-    row.push(r.fotoMec?base+'_medidor_mec.jpg':'', r.fotoEle?base+'_medidor_ele.jpg':'', r.fotoExtra?base+'_extra.jpg':'', r.obsExtra||'');
+    row.push(r.fotoMec?base+'_medidor_mec.jpg':'', r.fotoEle?base+'_medidor_ele.jpg':'', r.fotoExtra?base+'_extra.jpg':'', r.obsExtra||'', r.assinanteCliente||'');
     lines.push(row.map(csvCell).join(';'));
   });
   return '﻿' + lines.join('\r\n');
@@ -387,9 +428,7 @@ async function enviarCSVtodos(){
 }
 
 // ---------- PDF ----------
-function buildPdf(r){
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({unit:'mm', format:'a4'});
+function drawControle(doc, r){
   const L=12, R=198, W=186;
   const nz = v => (v==null||v==='')?'—':String(v);
   doc.setFillColor(24,95,165); doc.rect(L,10,W,11,'F');
@@ -440,11 +479,26 @@ function buildPdf(r){
   if(r.fotoExtra){ exH=addImg(r.fotoExtra, ex, py, 86, 105); } else { doc.setDrawColor(210); doc.rect(ex,py,86,64); }
   doc.setFontSize(7.5); doc.setTextColor(90,90,90); doc.text('Controle de medição (foto)', ex, py+exH+3.5); doc.setTextColor(20,20,20);
   const sy = Math.max(py+40+sh, py+exH) + 12;
-  [['sigCliente','Ass. Cliente', L],['sigLogas','Ass. Logás', L+100]].forEach(s=>{
-    if(r[s[0]]){ try{ doc.addImage(r[s[0]],'PNG', s[2], sy, 70, 20);}catch(e){} }
-    doc.line(s[2], sy+22, s[2]+70, sy+22); doc.setFontSize(8); doc.text(s[1], s[2], sy+26);
-  });
+  if(r.sigCliente){ try{ doc.addImage(r.sigCliente,'PNG', L, sy, 70, 20);}catch(e){} }
+  doc.line(L, sy+22, L+70, sy+22); doc.setFontSize(8);
+  doc.text('Ass. Cliente'+(r.assinanteCliente?' — '+r.assinanteCliente:''), L, sy+26);
+  if(r.sigLogas){ try{ doc.addImage(r.sigLogas,'PNG', L+100, sy, 70, 20);}catch(e){} }
+  doc.line(L+100, sy+22, L+170, sy+22); doc.text('Ass. Logás', L+100, sy+26);
+}
+function buildPdf(r){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  drawControle(doc, r);
   return doc;
+}
+async function enviarPDFtodos(){
+  const recs = await allRecs();
+  if(!recs.length){ toast('Nada para enviar'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  recs.forEach((r,i)=>{ if(i) doc.addPage(); drawControle(doc, r); });
+  const file = new File([doc.output('blob')], 'controles_medicao_'+hoje()+'.pdf', {type:'application/pdf'});
+  await shareFiles([file], 'Controles de Medição');
 }
 function verPdf(id){
   const r = recById(id); if(!r) return;
@@ -575,21 +629,26 @@ function preprocRed(dataUrl){
     img.src=dataUrl;
   });
 }
+function normHora(s){ const m=s.match(/(\d{1,2})[:.h](\d{2})/); return m ? m[1].padStart(2,'0')+':'+m[2] : ''; }
 async function ocrNumeroDoExtra(dataUrl){
-  if(val('numero')) return;
   try{
     await loadTesseract();
     if(typeof Tesseract==='undefined') return;
-    toast('Lendo o número do talão…');
-    const prep = await preprocRed(dataUrl);
-    const { data } = await Tesseract.recognize(prep, 'eng', { tessedit_char_whitelist:'0123456789' });
-    const nums = (data.text||'').match(/\d{4,7}/g);
-    if(nums && nums.length){
-      const num = nums.sort((a,b)=>b.length-a.length)[0];
-      const el=document.getElementById('numero');
-      if(!el.value){ el.value = num.length<6?num.padStart(6,'0'):num; atualizarNumHead(); toast('Nº detectado: '+el.value); }
-    } else { toast('Não li o número; digite manual.'); }
-  }catch(e){ /* offline/falha: número manual */ }
+    toast('Lendo o talão…');
+    if(!val('numero')){
+      const prep = await preprocRed(dataUrl);
+      const rn = await Tesseract.recognize(prep, 'eng', { tessedit_char_whitelist:'0123456789' });
+      const nums = (rn.data.text||'').match(/\d{4,7}/g);
+      if(nums && nums.length){ const num=nums.sort((a,b)=>b.length-a.length)[0]; const el=document.getElementById('numero'); if(!el.value){ el.value=num.length<6?num.padStart(6,'0'):num; atualizarNumHead(); } }
+    }
+    const g = await Tesseract.recognize(dataUrl, 'eng', { tessedit_char_whitelist:'0123456789/:.-h ' });
+    const t = (g.data.text||'');
+    const md = t.match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/);
+    if(md){ let d=md[1], m=md[2], a=md[3]; if(a.length===2) a='20'+a; const iso=a.padStart(4,'0')+'-'+m.padStart(2,'0')+'-'+d.padStart(2,'0'); const de=document.getElementById('data'); if(de) de.value=iso; }
+    const times = t.match(/(\d{1,2})[:.h](\d{2})/g);
+    if(times){ if(!val('hini')&&times[0]) document.getElementById('hini').value=normHora(times[0]); if(!val('hfim')&&times[1]) document.getElementById('hfim').value=normHora(times[1]); }
+    toast('Leitura concluída — confira os campos.');
+  }catch(e){ /* offline/falha: preencha manual */ }
 }
 
 // ---------- start ----------
