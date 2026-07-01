@@ -382,57 +382,59 @@ async function enviarCSVtodos(){
 function buildPdf(r){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:'mm', format:'a4'});
-  const L=15, R=195, W=180;
+  const L=12, R=198, W=186;
   const nz = v => (v==null||v==='')?'—':String(v);
-  doc.setFillColor(24,95,165); doc.rect(L,12,W,12,'F');
+  doc.setFillColor(24,95,165); doc.rect(L,10,W,11,'F');
   doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(14);
-  doc.text('LOGÁS  —  Controle de Medição', L+3, 20);
-  doc.setFontSize(12); doc.text('Nº '+nz(r.numero), R-2, 20, {align:'right'});
+  doc.text('LOGÁS  —  Controle de Medição', L+3, 17.5);
+  doc.setFontSize(12); doc.text('Nº '+nz(r.numero), R-2, 17.5, {align:'right'});
   doc.setTextColor(20,20,20);
+  const c1=L, c2=74, c3=136;
   function kv(x,y,label,value){
-    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.text(label, x, y);
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text(label, x, y);
     const w=doc.getTextWidth(label);
     doc.setFont('helvetica','normal'); doc.text(' '+nz(value), x+w, y);
   }
   function sec(y,txt){
-    doc.setFillColor(231,240,251); doc.rect(L,y-4.2,W,6,'F');
-    doc.setTextColor(12,68,124); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+    doc.setFillColor(231,240,251); doc.rect(L,y-3.8,W,5.5,'F');
+    doc.setTextColor(12,68,124); doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
     doc.text(txt, L+2, y); doc.setTextColor(20,20,20);
   }
-  function cestos(o){ const v=[]; for(let i=1;i<=9;i++){ if(o['c'+i]!=null && o['c'+i]!=='') v.push(i+': '+o['c'+i]); } return v.length? v.join('   ') : '—'; }
-  let y=33;
-  kv(L,y,'Cliente:',r.cliente); kv(110,y,'Data:',r.data);
-  y+=7; kv(L,y,'Placa:',r.placa); kv(80,y,'Início:',r.hini); kv(140,y,'Fim:',r.hfim);
-  y+=7; kv(L,y,'Leitura (eletrônico):',r.leitura); kv(120,y,'Med. mecânico:',r.leituraMec);
-  y+=10; sec(y,'Pressão anterior'); y+=6;
-  doc.setFont('helvetica','normal'); doc.setFontSize(10);
-  doc.text('Cestos: '+cestos(r.ant||{}), L, y); y+=5.5;
-  doc.text('Carreta: '+nz((r.ant||{}).carreta)+'    Estágios: '+nz((r.ant||{}).e1)+' / '+nz((r.ant||{}).e2)+' / '+nz((r.ant||{}).e3), L, y);
-  y+=10; sec(y,'Pressão atual'); y+=6;
-  doc.text('Cestos: '+cestos(r.atu||{}), L, y); y+=5.5;
-  doc.text('Carreta: '+nz((r.atu||{}).carreta)+'    Estágios: '+nz((r.atu||{}).e1)+' / '+nz((r.atu||{}).e2)+' / '+nz((r.atu||{}).e3), L, y);
-  y+=10; kv(L,y,'Central GNC em perfeito estado:', r.central);
-  y+=8; doc.setFont('helvetica','bold'); doc.text('Observações:', L, y); doc.setFont('helvetica','normal');
-  const obs = doc.splitTextToSize(nz(r.obs), W-30); doc.text(obs, L+28, y); y += obs.length*5 + 2;
-  if(r.obsExtra){ doc.setFont('helvetica','bold'); doc.text('Obs. foto extra:', L, y); doc.setFont('helvetica','normal');
-    const oe=doc.splitTextToSize(r.obsExtra, W-32); doc.text(oe, L+32, y); y+=oe.length*5+2; }
-  const fotos=[['fotoAntes','Antes'],['fotoDepois','Depois'],['fotoEle','Medidor eletrônico'],['fotoMec','Medidor mecânico'],['fotoExtra','Extra']].filter(f=>r[f[0]]);
-  if(fotos.length){
-    y+=6; if(y>250){ doc.addPage(); y=20; } sec(y,'Fotos'); y+=6;
-    let x=L; const fw=85, fh=60;
-    fotos.forEach(f=>{
-      if(y+fh>285){ doc.addPage(); y=20; x=L; }
-      try{ const fmt = r[f[0]].indexOf('image/png')>-1?'PNG':'JPEG'; doc.addImage(r[f[0]], fmt, x, y, fw, fh); }catch(e){ doc.rect(x,y,fw,fh); }
-      doc.setFontSize(8); doc.text(f[1], x, y+fh+4);
-      if(x===L){ x=L+90; } else { x=L; y+=fh+9; }
-    });
-    if(x!==L) y+=fh+9;
+  function cestos(o){ const v=[]; for(let i=1;i<=9;i++){ if(o['c'+i]!=null && o['c'+i]!=='') v.push(i+':'+o['c'+i]); } return v.length? v.join('  ') : '—'; }
+  function addImg(data,x,y,maxW,maxH){
+    try{ const p=doc.getImageProperties(data); let w=maxW,h=w*p.height/p.width; if(h>maxH){h=maxH;w=h*p.width/p.height;}
+      doc.addImage(data, p.fileType||'JPEG', x, y, w, h); return h; }
+    catch(e){ doc.setDrawColor(200); doc.rect(x,y,maxW,maxH*0.7); return maxH*0.7; }
   }
-  if(y>250){ doc.addPage(); y=20; }
-  const sy=Math.max(y,250)+4;
-  [['sigCliente','Ass. Cliente', L],['sigLogas','Ass. Logás', 110]].forEach(s=>{
-    if(r[s[0]]){ try{ doc.addImage(r[s[0]],'PNG', s[2], sy, 70, 22);}catch(e){} }
-    doc.line(s[2], sy+24, s[2]+70, sy+24); doc.setFontSize(8); doc.text(s[1], s[2], sy+28);
+  let y=28;
+  kv(c1,y,'Cliente:',r.cliente); kv(c2,y,'Data:',r.data); kv(c3,y,'Placa:',r.placa);
+  y+=6; kv(c1,y,'Horário:', nz(r.hini)+'–'+nz(r.hfim)); kv(c2,y,'Leitura elet.:',r.leitura); kv(c3,y,'Med. mec.:',r.leituraMec);
+  y+=6; kv(c1,y,'Central OK:', r.central);
+  y+=6; sec(y,'Pressão anterior'); y+=5;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  doc.text('Cestos: '+cestos(r.ant||{}), L, y); y+=4.5;
+  doc.text('Carreta: '+nz((r.ant||{}).carreta)+'   Estágios: '+nz((r.ant||{}).e1)+' / '+nz((r.ant||{}).e2)+' / '+nz((r.ant||{}).e3), L, y);
+  y+=7; sec(y,'Pressão atual'); y+=5;
+  doc.text('Cestos: '+cestos(r.atu||{}), L, y); y+=4.5;
+  doc.text('Carreta: '+nz((r.atu||{}).carreta)+'   Estágios: '+nz((r.atu||{}).e1)+' / '+nz((r.atu||{}).e2)+' / '+nz((r.atu||{}).e3), L, y);
+  y+=7; doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text('Observações:', L, y);
+  doc.setFont('helvetica','normal'); const obs=doc.splitTextToSize(nz(r.obs),155); doc.text(obs.slice(0,2), L+22, y); y+=Math.min(obs.length,2)*4.2+1;
+  if(r.obsExtra){ doc.setFont('helvetica','bold'); doc.text('Obs. extra:', L, y); doc.setFont('helvetica','normal'); const oe=doc.splitTextToSize(r.obsExtra,158); doc.text(oe.slice(0,1), L+19, y); y+=5; }
+  y+=3; sec(y,'Fotos'); y+=5;
+  const py=y, sw=42, sh=31;
+  const slots=[['fotoAntes','Antes',L,py],['fotoDepois','Depois',L+46,py],['fotoEle','Medidor eletrônico',L,py+40],['fotoMec','Medidor mecânico',L+46,py+40]];
+  slots.forEach(s=>{
+    if(r[s[0]]) addImg(r[s[0]], s[2], s[3], sw, sh);
+    else { doc.setDrawColor(210); doc.rect(s[2],s[3],sw,sh); }
+    doc.setFontSize(7.5); doc.setTextColor(90,90,90); doc.text(s[1], s[2], s[3]+sh+3.5); doc.setTextColor(20,20,20);
+  });
+  const ex=L+100; let exH=64;
+  if(r.fotoExtra){ exH=addImg(r.fotoExtra, ex, py, 86, 105); } else { doc.setDrawColor(210); doc.rect(ex,py,86,64); }
+  doc.setFontSize(7.5); doc.setTextColor(90,90,90); doc.text('Controle de medição (foto)', ex, py+exH+3.5); doc.setTextColor(20,20,20);
+  const sy = Math.max(py+40+sh, py+exH) + 12;
+  [['sigCliente','Ass. Cliente', L],['sigLogas','Ass. Logás', L+100]].forEach(s=>{
+    if(r[s[0]]){ try{ doc.addImage(r[s[0]],'PNG', s[2], sy, 70, 20);}catch(e){} }
+    doc.line(s[2], sy+22, s[2]+70, sy+22); doc.setFontSize(8); doc.text(s[1], s[2], sy+26);
   });
   return doc;
 }
