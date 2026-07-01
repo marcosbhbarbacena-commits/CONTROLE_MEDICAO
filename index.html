@@ -26,6 +26,7 @@
   .row>div{ flex:1; }
   .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
   .grid4{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+  .gridcar{ display:grid; grid-template-columns:1.7fr 1fr 1fr 1fr; gap:6px; }
   .cell label{ text-align:center; font-size:11px; }
   .cell input{ text-align:center; padding:9px 4px; font-weight:bold; }
   .field{ margin-bottom:10px; }
@@ -95,7 +96,7 @@
       <div style="max-width:130px"><label>Data</label><input id="data" type="date"></div>
     </div>
     <div class="row field">
-      <div><label>Placa</label><select id="placa" onchange="toggleOutro('placa')"><option value="">— selecionar —</option><option value="__outro__">Outro (digitar)</option></select><input id="placaOutro" class="hidden" placeholder="Nova placa" style="text-transform:uppercase;margin-top:6px"></div>
+      <div style="flex:2"><label>Placa</label><select id="placa" onchange="toggleOutro('placa')"><option value="">— selecionar —</option><option value="__outro__">Outro (digitar)</option></select><input id="placaOutro" class="hidden" placeholder="Nova placa" style="text-transform:uppercase;margin-top:6px"></div>
       <div><label>Hora inicial</label><input id="hini" type="time"></div>
       <div><label>Hora final</label><input id="hfim" type="time"></div>
     </div>
@@ -103,10 +104,11 @@
       <div><label>Leitura atual (med. eletrônico)</label><input id="leitura" placeholder="NT"></div>
       <div><label>Medidor mecânico</label><input id="leituraMec" placeholder=""></div>
     </div>
+    <div class="field"><label>Motorista</label><input id="motorista" placeholder="Nome do motorista"></div>
 
     <div class="sec">Pressão anterior</div>
-    <div class="grid3" id="antCestos"></div>
-    <div class="grid4" style="margin-top:8px">
+    <div class="grid4" id="antCestos"></div>
+    <div class="gridcar" style="margin-top:8px">
       <div class="cell"><label>Carreta</label><select id="antCarreta" onchange="toggleOutro('antCarreta')"><option value="">–</option><option value="__outro__">Outro</option></select><input id="antCarretaOutro" class="hidden" inputmode="numeric" style="margin-top:6px"></div>
       <div class="cell"><label>1º est.</label><input id="antE1" inputmode="numeric"></div>
       <div class="cell"><label>2º est.</label><input id="antE2" inputmode="numeric"></div>
@@ -114,8 +116,8 @@
     </div>
 
     <div class="sec">Pressão atual</div>
-    <div class="grid3" id="atuCestos"></div>
-    <div class="grid4" style="margin-top:8px">
+    <div class="grid4" id="atuCestos"></div>
+    <div class="gridcar" style="margin-top:8px">
       <div class="cell"><label>Carreta</label><select id="atuCarreta" onchange="toggleOutro('atuCarreta')"><option value="">–</option><option value="__outro__">Outro</option></select><input id="atuCarretaOutro" class="hidden" inputmode="numeric" style="margin-top:6px"></div>
       <div class="cell"><label>1º est.</label><input id="atuE1" inputmode="numeric"></div>
       <div class="cell"><label>2º est.</label><input id="atuE2" inputmode="numeric"></div>
@@ -150,12 +152,12 @@
       </div>
     </div>
 
-    <div class="sec">Foto extra (se precisar)</div>
+    <div class="sec">Cont. Medição</div>
     <div class="foto" style="margin-bottom:4px">
-      <div class="box" id="boxExtra" onclick="fotoTap('extra')" style="height:120px"><span>📷 Foto extra</span></div>
+      <div class="box" id="boxExtra" onclick="fotoTap('extra')" style="height:120px"><span>📷 Foto Cont. Medição</span></div>
       <input id="fExtra" type="file" accept="image/*" capture="environment" onchange="pickFoto(this,'extra')">
     </div>
-    <div class="field"><input id="obsExtra" placeholder="Observação da foto extra"></div>
+    <div class="field"><input id="obsExtra" placeholder="Observação (Cont. Medição)"></div>
 
     <div class="sec">Observações</div>
     <div class="field"><textarea id="obs" rows="2" placeholder="mec NT"></textarea></div>
@@ -211,7 +213,7 @@ const CESTOS = 9;
 let central = '';
 let fotos = { antes:null, depois:null, mec:null, ele:null, extra:null };
 const BOXES = { antes:'boxAntes', depois:'boxDepois', mec:'boxMec', ele:'boxEle', extra:'boxExtra' };
-const BOXTXT = { antes:'📷 Foto antes', depois:'📷 Foto depois', mec:'📷 Medidor mecânico', ele:'📷 Medidor eletrônico', extra:'📷 Foto extra' };
+const BOXTXT = { antes:'📷 Foto antes', depois:'📷 Foto depois', mec:'📷 Medidor mecânico', ele:'📷 Medidor eletrônico', extra:'📷 Foto Cont. Medição' };
 const INPUTS = { antes:'fAntes', depois:'fDepois', mec:'fMec', ele:'fEle', extra:'fExtra' };
 let viewerQual = null;
 function fotoTap(qual){
@@ -312,7 +314,7 @@ function coletar(){
   const ant={}, atu={};
   for(let i=1;i<=CESTOS;i++){ ant['c'+i]=val('antC'+i); atu['c'+i]=val('atuC'+i); }
   return {
-    numero:val('numero'), nf:val('nf'), cliente:fieldVal('cliente'), data:val('data'), placa:fieldVal('placa').toUpperCase(),
+    numero:val('numero'), nf:val('nf'), cliente:fieldVal('cliente'), data:val('data'), placa:fieldVal('placa').toUpperCase(), motorista:val('motorista'),
     hini:val('hini'), hfim:val('hfim'), leitura:val('leitura'), leituraMec:val('leituraMec'),
     ant:{...ant, carreta:fieldVal('antCarreta'), e1:val('antE1'), e2:val('antE2'), e3:val('antE3')},
     atu:{...atu, carreta:fieldVal('atuCarreta'), e1:val('atuE1'), e2:val('atuE2'), e3:val('atuE3')},
@@ -349,7 +351,7 @@ async function salvar(){
   }
 }
 function novo(keepData){
-  ['numero','nf','cliente','placa','hini','hfim','leitura','leituraMec','obs','obsExtra','antCarreta','antE1','antE2','antE3','atuCarreta','atuE1','atuE2','atuE3'].forEach(id=>document.getElementById(id).value='');
+  ['numero','nf','cliente','placa','motorista','hini','hfim','leitura','leituraMec','obs','obsExtra','antCarreta','antE1','antE2','antE3','atuCarreta','atuE1','atuE2','atuE3'].forEach(id=>document.getElementById(id).value='');
   const _aC=document.getElementById('assinanteCliente'); if(_aC) _aC.value='';
   ['clienteOutro','placaOutro','antCarretaOutro','atuCarretaOutro'].forEach(id=>{ const o=document.getElementById(id); if(o){ o.value=''; o.classList.add('hidden'); } });
   for(let i=1;i<=CESTOS;i++){ document.getElementById('antC'+i).value=''; document.getElementById('atuC'+i).value=''; }
@@ -381,7 +383,7 @@ async function refreshList(){
       <a class="del" href="#" onclick="remover(${r.id});return false">excluir</a>
       <div class="top"><span>Nº ${r.numero||'—'}</span></div>
       <div class="sub">${r.cliente||'—'} · ${fmtData(r.data)} · ${r.placa||'—'}</div>
-      <div class="sub">Atual: cestos ${resumoCestos(r.atu)} · ${r.fotoAntes?'📷antes ':''}${r.fotoDepois?'📷depois ':''}${r.fotoMec?'⚙️mec ':''}${r.fotoEle?'🔢ele ':''}${r.fotoExtra?'➕extra':''}</div>
+      <div class="sub">Atual: cestos ${resumoCestos(r.atu)} · ${r.fotoAntes?'📷antes ':''}${r.fotoDepois?'📷depois ':''}${r.fotoMec?'⚙️mec ':''}${r.fotoEle?'🔢ele ':''}${r.fotoExtra?'📄cont.med.':''}</div>
       <div class="acts">
         <button onclick="verPdf(${r.id})">Ver PDF</button>
         <button onclick="sharePdf(${r.id})">Enviar PDF</button>
@@ -401,7 +403,7 @@ function csvString(recs){
   head.push('Ant_Carreta','Ant_Est1','Ant_Est2','Ant_Est3');
   for(let i=1;i<=CESTOS;i++) head.push('Atu_Cesto'+i);
   head.push('Atu_Carreta','Atu_Est1','Atu_Est2','Atu_Est3');
-  head.push('CentralOK','Observacoes','Registrado','FotoAntes','FotoDepois','FotoMedidorMecanico','FotoMedidorEletronico','FotoExtra','ObsFotoExtra','AssinanteCliente');
+  head.push('CentralOK','Observacoes','Registrado','FotoAntes','FotoDepois','FotoMedidorMecanico','FotoMedidorEletronico','FotoExtra','ObsFotoExtra','AssinanteCliente','Motorista');
   const lines = [head.join(';')];
   recs.forEach(r=>{
     const row = [r.numero, r.nf, fmtData(r.data), r.cliente, r.placa, r.hini, r.hfim, r.leitura, r.leituraMec];
@@ -411,7 +413,7 @@ function csvString(recs){
     row.push(r.atu.carreta, r.atu.e1, r.atu.e2, r.atu.e3);
     const base = (r.numero||('rec'+r.id));
     row.push(r.central, r.obs, r.registrado, r.fotoAntes?base+'_antes.jpg':'', r.fotoDepois?base+'_depois.jpg':'');
-    row.push(r.fotoMec?base+'_medidor_mec.jpg':'', r.fotoEle?base+'_medidor_ele.jpg':'', r.fotoExtra?base+'_extra.jpg':'', r.obsExtra||'', r.assinanteCliente||'');
+    row.push(r.fotoMec?base+'_medidor_mec.jpg':'', r.fotoEle?base+'_medidor_ele.jpg':'', r.fotoExtra?base+'_extra.jpg':'', r.obsExtra||'', r.assinanteCliente||'', r.motorista||'');
     lines.push(row.map(csvCell).join(';'));
   });
   return '﻿' + lines.join('\r\n');
@@ -459,7 +461,7 @@ function drawControle(doc, r){
   let y=28;
   kv(c1,y,'Cliente:',r.cliente); kv(c2,y,'Data:',r.data); kv(c3,y,'Placa:',r.placa);
   y+=6; kv(c1,y,'Horário:', nz(r.hini)+'–'+nz(r.hfim)); kv(c2,y,'Leitura elet.:',r.leitura); kv(c3,y,'Med. mec.:',r.leituraMec);
-  y+=6; kv(c1,y,'Central OK:', r.central); kv(c2,y,'NF:', r.nf);
+  y+=6; kv(c1,y,'Central OK:', r.central); kv(c2,y,'NF:', r.nf); kv(c3,y,'Motorista:', r.motorista);
   y+=6; sec(y,'Pressão anterior'); y+=5;
   doc.setFont('helvetica','normal'); doc.setFontSize(9);
   doc.text('Cestos: '+cestos(r.ant||{}), L, y); y+=4.5;
@@ -469,7 +471,7 @@ function drawControle(doc, r){
   doc.text('Carreta: '+nz((r.atu||{}).carreta)+'   Estágios: '+nz((r.atu||{}).e1)+' / '+nz((r.atu||{}).e2)+' / '+nz((r.atu||{}).e3), L, y);
   y+=7; doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text('Observações:', L, y);
   doc.setFont('helvetica','normal'); const obs=doc.splitTextToSize(nz(r.obs),155); doc.text(obs.slice(0,2), L+22, y); y+=Math.min(obs.length,2)*4.2+1;
-  if(r.obsExtra){ doc.setFont('helvetica','bold'); doc.text('Obs. extra:', L, y); doc.setFont('helvetica','normal'); const oe=doc.splitTextToSize(r.obsExtra,158); doc.text(oe.slice(0,1), L+19, y); y+=5; }
+  if(r.obsExtra){ doc.setFont('helvetica','bold'); doc.text('Obs. medição:', L, y); doc.setFont('helvetica','normal'); const oe=doc.splitTextToSize(r.obsExtra,150); doc.text(oe.slice(0,1), L+27, y); y+=5; }
   y+=3; sec(y,'Fotos'); y+=5;
   const py=y, sw=42, sh=31;
   const slots=[['fotoAntes','Antes',L,py],['fotoDepois','Depois',L+46,py],['fotoEle','Medidor eletrônico',L,py+40],['fotoMec','Medidor mecânico',L+46,py+40]];
@@ -524,14 +526,13 @@ async function shareCsvRec(id){
   await shareFiles([file], 'Controle de Medição '+(r.numero||''));
 }
 async function shareFiles(files, titulo){
-  try{
-    if(navigator.canShare && navigator.canShare({files})){
-      await navigator.share({files, title:titulo, text:titulo});
-      return;
-    }
-  }catch(e){ if(e && e.name==='AbortError') return; }
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  if(isMobile && navigator.canShare && navigator.canShare({files})){
+    try{ await navigator.share({files, title:titulo, text:titulo}); return; }
+    catch(e){ if(e && e.name==='AbortError') return; }
+  }
   files.forEach(f=> baixar(f, f.name));
-  toast('Compartilhar direto indisponível aqui; arquivo baixado.');
+  toast(isMobile ? 'Arquivo baixado.' : 'Arquivo(s) baixado(s) — anexe no WhatsApp Web.');
 }
 async function exportFotos(){
   const recs = await allRecs();

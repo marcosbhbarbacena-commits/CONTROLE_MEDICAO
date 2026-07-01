@@ -1,4 +1,4 @@
-const CACHE = 'logas-medicao-v11';
+const CACHE = 'logas-medicao-v13';
 const ASSETS = ['index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'xlsx.full.min.js', 'jspdf.umd.min.js', 'cadastros.xlsx'];
 
 self.addEventListener('install', e => {
