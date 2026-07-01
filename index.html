@@ -81,11 +81,11 @@
   <main id="viewForm">
     <div class="field"><label>Nº do talão</label><input id="numero" inputmode="numeric" placeholder="017683"></div>
     <div class="row field">
-      <div><label>Cliente</label><input id="cliente" list="listaClientes" placeholder="TEAR"><datalist id="listaClientes"></datalist></div>
+      <div><label>Cliente</label><select id="cliente" onchange="toggleOutro('cliente')"><option value="">— selecionar —</option><option value="__outro__">Outro (digitar)</option></select><input id="clienteOutro" class="hidden" placeholder="Novo cliente" style="margin-top:6px"></div>
       <div style="max-width:130px"><label>Data</label><input id="data" type="date"></div>
     </div>
     <div class="row field">
-      <div><label>Placa</label><input id="placa" list="listaPlacas" placeholder="QUO3644" style="text-transform:uppercase"><datalist id="listaPlacas"></datalist></div>
+      <div><label>Placa</label><select id="placa" onchange="toggleOutro('placa')"><option value="">— selecionar —</option><option value="__outro__">Outro (digitar)</option></select><input id="placaOutro" class="hidden" placeholder="Nova placa" style="text-transform:uppercase;margin-top:6px"></div>
       <div><label>Hora inicial</label><input id="hini" type="time"></div>
       <div><label>Hora final</label><input id="hfim" type="time"></div>
     </div>
@@ -97,7 +97,7 @@
     <div class="sec">Pressão anterior</div>
     <div class="grid3" id="antCestos"></div>
     <div class="grid4" style="margin-top:8px">
-      <div class="cell"><label>Carreta</label><input id="antCarreta" list="listaCarretas" inputmode="numeric"><datalist id="listaCarretas"></datalist></div>
+      <div class="cell"><label>Carreta</label><select id="antCarreta" onchange="toggleOutro('antCarreta')"><option value="">–</option><option value="__outro__">Outro</option></select><input id="antCarretaOutro" class="hidden" inputmode="numeric" style="margin-top:6px"></div>
       <div class="cell"><label>1º est.</label><input id="antE1" inputmode="numeric"></div>
       <div class="cell"><label>2º est.</label><input id="antE2" inputmode="numeric"></div>
       <div class="cell"><label>3º est.</label><input id="antE3" inputmode="numeric"></div>
@@ -106,7 +106,7 @@
     <div class="sec">Pressão atual</div>
     <div class="grid3" id="atuCestos"></div>
     <div class="grid4" style="margin-top:8px">
-      <div class="cell"><label>Carreta</label><input id="atuCarreta" list="listaCarretas" inputmode="numeric"></div>
+      <div class="cell"><label>Carreta</label><select id="atuCarreta" onchange="toggleOutro('atuCarreta')"><option value="">–</option><option value="__outro__">Outro</option></select><input id="atuCarretaOutro" class="hidden" inputmode="numeric" style="margin-top:6px"></div>
       <div class="cell"><label>1º est.</label><input id="atuE1" inputmode="numeric"></div>
       <div class="cell"><label>2º est.</label><input id="atuE2" inputmode="numeric"></div>
       <div class="cell"><label>3º est.</label><input id="atuE3" inputmode="numeric"></div>
@@ -276,10 +276,10 @@ function coletar(){
   const ant={}, atu={};
   for(let i=1;i<=CESTOS;i++){ ant['c'+i]=val('antC'+i); atu['c'+i]=val('atuC'+i); }
   return {
-    numero:val('numero'), cliente:val('cliente'), data:val('data'), placa:val('placa').toUpperCase(),
+    numero:val('numero'), cliente:fieldVal('cliente'), data:val('data'), placa:fieldVal('placa').toUpperCase(),
     hini:val('hini'), hfim:val('hfim'), leitura:val('leitura'), leituraMec:val('leituraMec'),
-    ant:{...ant, carreta:val('antCarreta'), e1:val('antE1'), e2:val('antE2'), e3:val('antE3')},
-    atu:{...atu, carreta:val('atuCarreta'), e1:val('atuE1'), e2:val('atuE2'), e3:val('atuE3')},
+    ant:{...ant, carreta:fieldVal('antCarreta'), e1:val('antE1'), e2:val('antE2'), e3:val('antE3')},
+    atu:{...atu, carreta:fieldVal('atuCarreta'), e1:val('atuE1'), e2:val('atuE2'), e3:val('atuE3')},
     central, obs:val('obs'), obsExtra:val('obsExtra'),
     fotoAntes:fotos.antes, fotoDepois:fotos.depois,
     fotoMec:fotos.mec, fotoEle:fotos.ele, fotoExtra:fotos.extra,
@@ -297,6 +297,7 @@ async function salvar(){
 }
 function novo(keepData){
   ['numero','cliente','placa','hini','hfim','leitura','leituraMec','obs','obsExtra','antCarreta','antE1','antE2','antE3','atuCarreta','atuE1','atuE2','atuE3'].forEach(id=>document.getElementById(id).value='');
+  ['clienteOutro','placaOutro','antCarretaOutro','atuCarretaOutro'].forEach(id=>{ const o=document.getElementById(id); if(o){ o.value=''; o.classList.add('hidden'); } });
   for(let i=1;i<=CESTOS;i++){ document.getElementById('antC'+i).value=''; document.getElementById('atuC'+i).value=''; }
   document.getElementById('data').value = new Date().toISOString().slice(0,10);
   fotos = { antes:null, depois:null, mec:null, ele:null, extra:null };
@@ -500,6 +501,17 @@ let toastT;
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
 
 // ---------- cadastros (lê cadastros.xlsx) ----------
+function itensAba(wb, aba){
+  const ws = wb.Sheets[aba]; if(!ws) return [];
+  return XLSX.utils.sheet_to_json(ws, {header:1}).slice(1).map(r=> r[0]==null?'':String(r[0]).trim()).filter(Boolean);
+}
+function fillSelect(id, itens){
+  const sel = document.getElementById(id); if(!sel) return;
+  const atual = sel.value;
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  sel.innerHTML = '<option value="">— selecionar —</option>' + itens.map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join('') + '<option value="__outro__">Outro (digitar)</option>';
+  if(atual) sel.value = atual;
+}
 async function carregarCadastros(){
   try{
     if(typeof XLSX==='undefined') return;
@@ -507,18 +519,24 @@ async function carregarCadastros(){
     if(!resp.ok) return;
     const buf = await resp.arrayBuffer();
     const wb = XLSX.read(new Uint8Array(buf), {type:'array'});
-    preencherLista('listaClientes', wb, 'Clientes');
-    preencherLista('listaPlacas', wb, 'Placas');
-    preencherLista('listaCarretas', wb, 'Carretas');
-  }catch(e){ /* sem cadastro: campos seguem livres */ }
+    fillSelect('cliente', itensAba(wb,'Clientes'));
+    fillSelect('placa', itensAba(wb,'Placas'));
+    const car = itensAba(wb,'Carretas');
+    fillSelect('antCarreta', car);
+    fillSelect('atuCarreta', car);
+  }catch(e){ /* sem cadastro: use 'Outro (digitar)' */ }
 }
-function preencherLista(idDatalist, wb, aba){
-  const ws = wb.Sheets[aba]; if(!ws) return;
-  const rows = XLSX.utils.sheet_to_json(ws, {header:1});
-  const dl = document.getElementById(idDatalist); if(!dl) return;
-  const vals = [];
-  rows.slice(1).forEach(r => { const v=(r[0]==null?'':String(r[0]).trim()); if(v) vals.push(v); });
-  dl.innerHTML = vals.map(v=>'<option value="'+v.replace(/"/g,'&quot;')+'"></option>').join('');
+function toggleOutro(id){
+  const sel = document.getElementById(id), outro = document.getElementById(id+'Outro');
+  if(!sel || !outro) return;
+  const show = sel.value==='__outro__';
+  outro.classList.toggle('hidden', !show);
+  if(show) outro.focus();
+}
+function fieldVal(id){
+  const el = document.getElementById(id);
+  if(el && el.tagName==='SELECT'){ let v = el.value; if(v==='__outro__'){ const o=document.getElementById(id+'Outro'); v = o?o.value:''; } return (v||'').trim(); }
+  return ((el && el.value)||'').trim();
 }
 
 // ---------- start ----------
