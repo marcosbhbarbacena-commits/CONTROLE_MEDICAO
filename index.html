@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#185FA5">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>LOGÁS · Controle de Medição</title>
+<style>
+  :root{ --azul:#185FA5; --azul2:#0C447C; --linha:#B4C6E7; --tinta:#12386b; --vermelho:#A32D2D; --verde:#0F6E56; --cinza:#6b7280; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body{ margin:0; font-family:Arial, Helvetica, sans-serif; background:#eef2f7; color:#1a1a1a; font-size:15px; }
+  .app{ max-width:520px; margin:0 auto; background:#fff; min-height:100vh; }
+  header{ position:sticky; top:0; z-index:20; background:var(--azul); color:#fff; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; }
+  .logo{ display:flex; align-items:center; gap:8px; }
+  .logo b{ font-size:20px; letter-spacing:.5px; }
+  .logo small{ display:block; font-size:11px; opacity:.9; }
+  .num{ background:#fff; color:var(--vermelho); font-weight:bold; padding:4px 9px; border-radius:6px; font-size:15px; }
+  main{ padding:12px 12px 90px; }
+  .sec{ margin:14px 0 6px; background:#e7f0fb; color:var(--azul2); font-weight:bold; font-size:13px; padding:6px 10px; border-radius:6px; }
+  label{ display:block; font-size:12px; color:var(--cinza); margin:0 0 3px; }
+  input, textarea, select{ width:100%; font-size:16px; font-family:inherit; padding:9px 10px; border:1px solid var(--linha); border-radius:8px; background:#fff; color:var(--tinta); }
+  input:focus, textarea:focus{ outline:none; border-color:var(--azul); box-shadow:0 0 0 2px #cfe0f5; }
+  .row{ display:flex; gap:8px; }
+  .row>div{ flex:1; }
+  .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .grid4{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+  .cell label{ text-align:center; font-size:11px; }
+  .cell input{ text-align:center; padding:9px 4px; font-weight:bold; }
+  .field{ margin-bottom:10px; }
+  .fotos{ display:flex; gap:10px; }
+  .foto{ flex:1; }
+  .foto .box{ border:2px dashed #9db8de; border-radius:10px; height:96px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--azul); gap:4px; background:#f6f9fe; overflow:hidden; position:relative; }
+  .foto .box img{ width:100%; height:100%; object-fit:cover; }
+  .foto .box span{ font-size:12px; text-align:center; }
+  .foto input{ display:none; }
+  .toggle{ display:flex; gap:8px; }
+  .toggle button{ flex:1; border:1px solid var(--linha); background:#fff; color:#333; padding:9px; border-radius:8px; font-size:14px; font-weight:bold; }
+  .toggle button.on-sim{ background:var(--verde); color:#fff; border-color:var(--verde); }
+  .toggle button.on-nao{ background:var(--vermelho); color:#fff; border-color:var(--vermelho); }
+  .assin{ border:1px solid var(--linha); border-radius:8px; background:#fff; }
+  .assin canvas{ width:100%; height:90px; display:block; border-radius:8px; touch-action:none; }
+  .assin .bar{ display:flex; justify-content:space-between; align-items:center; padding:4px 8px; border-top:1px solid #eef2f7; }
+  .assin .bar small{ color:var(--cinza); font-size:11px; }
+  .assin .bar a{ color:var(--azul); font-size:12px; text-decoration:none; }
+  .actions{ position:fixed; bottom:0; left:0; right:0; max-width:520px; margin:0 auto; background:#fff; border-top:1px solid #e2e8f0; padding:10px 12px; display:flex; gap:8px; }
+  .btn{ flex:1; border:none; border-radius:10px; padding:13px; font-size:15px; font-weight:bold; color:#fff; }
+  .btn.salvar{ background:var(--azul); }
+  .btn.novo{ background:#fff; color:var(--azul); border:1px solid var(--azul); }
+  .tabs{ display:flex; border-bottom:1px solid #e2e8f0; }
+  .tabs button{ flex:1; background:none; border:none; padding:11px; font-size:14px; font-weight:bold; color:var(--cinza); border-bottom:3px solid transparent; }
+  .tabs button.active{ color:var(--azul); border-bottom-color:var(--azul); }
+  .hidden{ display:none; }
+  .rec{ border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; margin-bottom:8px; }
+  .rec .top{ display:flex; justify-content:space-between; font-weight:bold; color:var(--azul2); }
+  .rec .sub{ font-size:12px; color:var(--cinza); margin-top:2px; }
+  .rec .del{ color:var(--vermelho); font-size:12px; float:right; text-decoration:none; }
+  .exp{ display:flex; gap:8px; margin:6px 0 14px; }
+  .exp button{ flex:1; background:var(--azul); color:#fff; border:none; border-radius:10px; padding:12px; font-weight:bold; font-size:14px; }
+  .exp button.sec{ background:#fff; color:var(--azul); border:1px solid var(--azul); }
+  .empty{ text-align:center; color:var(--cinza); padding:30px 10px; font-size:14px; }
+  .toast{ position:fixed; left:50%; bottom:80px; transform:translateX(-50%); background:#12386b; color:#fff; padding:10px 16px; border-radius:20px; font-size:13px; z-index:50; opacity:0; transition:opacity .2s; }
+  .toast.show{ opacity:1; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo"><b>LOGÁS</b><small>Controle de Medição</small></div>
+    <div class="num" id="numHead">—</div>
+  </header>
+
+  <div class="tabs">
+    <button id="tabForm" class="active" onclick="showTab('form')">Novo controle</button>
+    <button id="tabList" onclick="showTab('list')">Registros (<span id="cnt">0</span>)</button>
+  </div>
+
+  <main id="viewForm">
+    <div class="field"><label>Nº do talão</label><input id="numero" inputmode="numeric" placeholder="017683"></div>
+    <div class="row field">
+      <div><label>Cliente</label><input id="cliente" list="listaClientes" placeholder="TEAR"><datalist id="listaClientes"></datalist></div>
+      <div style="max-width:130px"><label>Data</label><input id="data" type="date"></div>
+    </div>
+    <div class="row field">
+      <div><label>Placa</label><input id="placa" list="listaPlacas" placeholder="QUO3644" style="text-transform:uppercase"><datalist id="listaPlacas"></datalist></div>
+      <div><label>Hora inicial</label><input id="hini" type="time"></div>
+      <div><label>Hora final</label><input id="hfim" type="time"></div>
+    </div>
+    <div class="row field">
+      <div><label>Leitura atual (med. eletrônico)</label><input id="leitura" placeholder="NT"></div>
+      <div><label>Medidor mecânico</label><input id="leituraMec" placeholder=""></div>
+    </div>
+
+    <div class="sec">Pressão anterior</div>
+    <div class="grid3" id="antCestos"></div>
+    <div class="grid4" style="margin-top:8px">
+      <div class="cell"><label>Carreta</label><input id="antCarreta" list="listaCarretas" inputmode="numeric"><datalist id="listaCarretas"></datalist></div>
+      <div class="cell"><label>1º est.</label><input id="antE1" inputmode="numeric"></div>
+      <div class="cell"><label>2º est.</label><input id="antE2" inputmode="numeric"></div>
+      <div class="cell"><label>3º est.</label><input id="antE3" inputmode="numeric"></div>
+    </div>
+
+    <div class="sec">Pressão atual</div>
+    <div class="grid3" id="atuCestos"></div>
+    <div class="grid4" style="margin-top:8px">
+      <div class="cell"><label>Carreta</label><input id="atuCarreta" list="listaCarretas" inputmode="numeric"></div>
+      <div class="cell"><label>1º est.</label><input id="atuE1" inputmode="numeric"></div>
+      <div class="cell"><label>2º est.</label><input id="atuE2" inputmode="numeric"></div>
+      <div class="cell"><label>3º est.</label><input id="atuE3" inputmode="numeric"></div>
+    </div>
+
+    <div class="sec">Medidor (se houver)</div>
+    <div class="fotos">
+      <div class="foto">
+        <label>Eletrônico</label>
+        <label class="box" for="fEle" id="boxEle"><span>📷 Medidor eletrônico</span></label>
+        <input id="fEle" type="file" accept="image/*" capture="environment" onchange="pickFoto(this,'ele')">
+      </div>
+      <div class="foto">
+        <label>Mecânico</label>
+        <label class="box" for="fMec" id="boxMec"><span>📷 Medidor mecânico</span></label>
+        <input id="fMec" type="file" accept="image/*" capture="environment" onchange="pickFoto(this,'mec')">
+      </div>
+    </div>
+
+    <div class="sec">Fotos do abastecimento</div>
+    <div class="fotos">
+      <div class="foto">
+        <label>Antes</label>
+        <label class="box" for="fAntes" id="boxAntes"><span>📷 Foto antes</span></label>
+        <input id="fAntes" type="file" accept="image/*" capture="environment" onchange="pickFoto(this,'antes')">
+      </div>
+      <div class="foto">
+        <label>Depois</label>
+        <label class="box" for="fDepois" id="boxDepois"><span>📷 Foto depois</span></label>
+        <input id="fDepois" type="file" accept="image/*" capture="environment" onchange="pickFoto(this,'depois')">
+      </div>
+    </div>
+
+    <div class="sec">Foto extra (se precisar)</div>
+    <div class="foto" style="margin-bottom:4px">
+      <label class="box" for="fExtra" id="boxExtra" style="height:120px"><span>📷 Foto extra</span></label>
+      <input id="fExtra" type="file" accept="image/*" capture="environment" onchange="pickFoto(this,'extra')">
+    </div>
+    <div class="field"><input id="obsExtra" placeholder="Observação da foto extra"></div>
+
+    <div class="sec">Observações</div>
+    <div class="field"><textarea id="obs" rows="2" placeholder="mec NT"></textarea></div>
+
+    <div class="field">
+      <label>Central de GNC em perfeito estado de conservação</label>
+      <div class="toggle">
+        <button type="button" id="cSim" onclick="setCentral('SIM')">Sim</button>
+        <button type="button" id="cNao" onclick="setCentral('NÃO')">Não</button>
+      </div>
+    </div>
+
+    <div class="sec">Assinaturas</div>
+    <div class="field assin">
+      <canvas id="sigCliente"></canvas>
+      <div class="bar"><small>Ass. Cliente</small><a href="#" onclick="clearSig('sigCliente');return false">Limpar</a></div>
+    </div>
+    <div class="field assin">
+      <canvas id="sigLogas"></canvas>
+      <div class="bar"><small>Ass. Logás</small><a href="#" onclick="clearSig('sigLogas');return false">Limpar</a></div>
+    </div>
+  </main>
+
+  <main id="viewList" class="hidden">
+    <div class="exp">
+      <button onclick="exportCSV()">Exportar CSV</button>
+      <button class="sec" onclick="exportFotos()">Exportar fotos</button>
+    </div>
+    <div id="recs"></div>
+  </main>
+
+  <div class="actions" id="formActions">
+    <button class="btn novo" onclick="novo()">Limpar</button>
+    <button class="btn salvar" onclick="salvar()">Salvar controle</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="xlsx.full.min.js"></script>
+<script>
+const CESTOS = 9;
+let central = '';
+let fotos = { antes:null, depois:null, mec:null, ele:null, extra:null };
+const BOXES = { antes:'boxAntes', depois:'boxDepois', mec:'boxMec', ele:'boxEle', extra:'boxExtra' };
+const BOXTXT = { antes:'📷 Foto antes', depois:'📷 Foto depois', mec:'📷 Medidor mecânico', ele:'📷 Medidor eletrônico', extra:'📷 Foto extra' };
+
+function montarCestos(prefix, container){
+  const el = document.getElementById(container);
+  let h = '';
+  for(let i=1;i<=CESTOS;i++){
+    h += `<div class="cell"><label>Cesto ${i}</label><input id="${prefix}C${i}" inputmode="numeric"></div>`;
+  }
+  el.innerHTML = h;
+}
+montarCestos('ant','antCestos');
+montarCestos('atu','atuCestos');
+document.getElementById('data').value = new Date().toISOString().slice(0,10);
+
+// ---------- IndexedDB ----------
+let db;
+function openDB(){
+  return new Promise((res,rej)=>{
+    const r = indexedDB.open('logas_medicao', 1);
+    r.onupgradeneeded = e => { e.target.result.createObjectStore('controles', {keyPath:'id', autoIncrement:true}); };
+    r.onsuccess = e => { db = e.target.result; res(); };
+    r.onerror = e => rej(e);
+  });
+}
+function txStore(mode){ return db.transaction('controles', mode).objectStore('controles'); }
+function addRec(rec){ return new Promise((res,rej)=>{ const r=txStore('readwrite').add(rec); r.onsuccess=()=>res(r.result); r.onerror=rej; }); }
+function allRecs(){ return new Promise((res,rej)=>{ const r=txStore('readonly').getAll(); r.onsuccess=()=>res(r.result); r.onerror=rej; }); }
+function delRec(id){ return new Promise((res,rej)=>{ const r=txStore('readwrite').delete(id); r.onsuccess=()=>res(); r.onerror=rej; }); }
+
+// ---------- fotos ----------
+function pickFoto(input, qual){
+  const f = input.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 1280;
+      let w = img.width, h = img.height;
+      if(w>max || h>max){ const s=Math.min(max/w,max/h); w=Math.round(w*s); h=Math.round(h*s); }
+      const c = document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      const data = c.toDataURL('image/jpeg', 0.7);
+      fotos[qual] = data;
+      document.getElementById(BOXES[qual]).innerHTML = `<img src="${data}" alt="foto ${qual}">`;
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(f);
+}
+
+function setCentral(v){
+  central = v;
+  document.getElementById('cSim').className = v==='SIM'?'on-sim':'';
+  document.getElementById('cNao').className = v==='NÃO'?'on-nao':'';
+}
+
+// ---------- assinaturas ----------
+function initSig(id){
+  const c = document.getElementById(id);
+  const ratio = window.devicePixelRatio||1;
+  const rect = c.getBoundingClientRect();
+  c.width = (rect.width||460)*ratio; c.height = 90*ratio;
+  const ctx = c.getContext('2d'); ctx.scale(ratio,ratio); ctx.lineWidth=2; ctx.lineCap='round'; ctx.strokeStyle='#12386b';
+  let drawing=false, empty=true;
+  const pos = e => { const r=c.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:t.clientX-r.left, y:t.clientY-r.top}; };
+  const start = e => { drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); };
+  const move = e => { if(!drawing) return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); empty=false; e.preventDefault(); };
+  const end = () => drawing=false;
+  c.addEventListener('mousedown',start); c.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
+  c.addEventListener('touchstart',start,{passive:false}); c.addEventListener('touchmove',move,{passive:false}); c.addEventListener('touchend',end);
+  c._isEmpty = () => empty; c._reset = () => { ctx.clearRect(0,0,c.width,c.height); empty=true; };
+}
+function clearSig(id){ document.getElementById(id)._reset(); }
+function sigData(id){ const c=document.getElementById(id); return c._isEmpty()?null:c.toDataURL('image/png'); }
+
+// ---------- coletar / salvar ----------
+function val(id){ return (document.getElementById(id).value||'').trim(); }
+function coletar(){
+  const ant={}, atu={};
+  for(let i=1;i<=CESTOS;i++){ ant['c'+i]=val('antC'+i); atu['c'+i]=val('atuC'+i); }
+  return {
+    numero:val('numero'), cliente:val('cliente'), data:val('data'), placa:val('placa').toUpperCase(),
+    hini:val('hini'), hfim:val('hfim'), leitura:val('leitura'), leituraMec:val('leituraMec'),
+    ant:{...ant, carreta:val('antCarreta'), e1:val('antE1'), e2:val('antE2'), e3:val('antE3')},
+    atu:{...atu, carreta:val('atuCarreta'), e1:val('atuE1'), e2:val('atuE2'), e3:val('atuE3')},
+    central, obs:val('obs'), obsExtra:val('obsExtra'),
+    fotoAntes:fotos.antes, fotoDepois:fotos.depois,
+    fotoMec:fotos.mec, fotoEle:fotos.ele, fotoExtra:fotos.extra,
+    sigCliente:sigData('sigCliente'), sigLogas:sigData('sigLogas'),
+    registrado: new Date().toISOString()
+  };
+}
+async function salvar(){
+  const rec = coletar();
+  if(!rec.numero && !rec.cliente){ toast('Preencha ao menos Nº e Cliente'); return; }
+  await addRec(rec);
+  toast('Controle salvo ✓');
+  novo(true);
+  await refreshList();
+}
+function novo(keepData){
+  ['numero','cliente','placa','hini','hfim','leitura','leituraMec','obs','obsExtra','antCarreta','antE1','antE2','antE3','atuCarreta','atuE1','atuE2','atuE3'].forEach(id=>document.getElementById(id).value='');
+  for(let i=1;i<=CESTOS;i++){ document.getElementById('antC'+i).value=''; document.getElementById('atuC'+i).value=''; }
+  document.getElementById('data').value = new Date().toISOString().slice(0,10);
+  fotos = { antes:null, depois:null, mec:null, ele:null, extra:null };
+  Object.keys(BOXES).forEach(q => document.getElementById(BOXES[q]).innerHTML = `<span>${BOXTXT[q]}</span>`);
+  setCentral(''); clearSig('sigCliente'); clearSig('sigLogas');
+  sugerirNumero();
+  if(!keepData) showTab('form');
+}
+
+async function sugerirNumero(){
+  const recs = await allRecs();
+  if(recs.length){
+    const nums = recs.map(r=>parseInt(r.numero,10)).filter(n=>!isNaN(n));
+    if(nums.length){ const prox=Math.max(...nums)+1; document.getElementById('numero').value=String(prox).padStart(6,'0'); }
+  }
+  atualizarNumHead();
+}
+function atualizarNumHead(){ const n=val('numero'); document.getElementById('numHead').textContent = n||'—'; }
+document.getElementById('numero').addEventListener('input', atualizarNumHead);
+
+// ---------- lista ----------
+async function refreshList(){
+  const recs = await allRecs();
+  document.getElementById('cnt').textContent = recs.length;
+  const box = document.getElementById('recs');
+  if(!recs.length){ box.innerHTML='<div class="empty">Nenhum controle salvo ainda.<br>Preencha e toque em Salvar.</div>'; return; }
+  box.innerHTML = recs.slice().reverse().map(r=>`
+    <div class="rec">
+      <a class="del" href="#" onclick="remover(${r.id});return false">excluir</a>
+      <div class="top"><span>Nº ${r.numero||'—'}</span></div>
+      <div class="sub">${r.cliente||'—'} · ${fmtData(r.data)} · ${r.placa||'—'}</div>
+      <div class="sub">Atual: cestos ${resumoCestos(r.atu)} · ${r.fotoAntes?'📷antes ':''}${r.fotoDepois?'📷depois ':''}${r.fotoMec?'⚙️mec ':''}${r.fotoEle?'🔢ele ':''}${r.fotoExtra?'➕extra':''}</div>
+    </div>`).join('');
+}
+function resumoCestos(o){ const v=[]; for(let i=1;i<=CESTOS;i++){ if(o['c'+i]) v.push(o['c'+i]); } return v.join('/')||'—'; }
+function fmtData(d){ if(!d) return '—'; const p=String(d).split('-'); return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d; }
+async function remover(id){ if(confirm('Excluir este controle?')){ await delRec(id); await refreshList(); await sugerirNumero(); } }
+
+// ---------- exportar CSV ----------
+function csvCell(v){ v=(v==null?'':String(v)); if(/[;"\n]/.test(v)){ v='"'+v.replace(/"/g,'""')+'"'; } return v; }
+async function exportCSV(){
+  const recs = await allRecs();
+  if(!recs.length){ toast('Nada para exportar'); return; }
+  const head = ['Numero','Data','Cliente','Placa','HoraInicial','HoraFinal','LeituraAtual','LeituraMecanico'];
+  for(let i=1;i<=CESTOS;i++) head.push('Ant_Cesto'+i);
+  head.push('Ant_Carreta','Ant_Est1','Ant_Est2','Ant_Est3');
+  for(let i=1;i<=CESTOS;i++) head.push('Atu_Cesto'+i);
+  head.push('Atu_Carreta','Atu_Est1','Atu_Est2','Atu_Est3');
+  head.push('CentralOK','Observacoes','Registrado','FotoAntes','FotoDepois','FotoMedidorMecanico','FotoMedidorEletronico','FotoExtra','ObsFotoExtra');
+  const lines = [head.join(';')];
+  recs.forEach(r=>{
+    const row = [r.numero, fmtData(r.data), r.cliente, r.placa, r.hini, r.hfim, r.leitura, r.leituraMec];
+    for(let i=1;i<=CESTOS;i++) row.push(r.ant['c'+i]);
+    row.push(r.ant.carreta, r.ant.e1, r.ant.e2, r.ant.e3);
+    for(let i=1;i<=CESTOS;i++) row.push(r.atu['c'+i]);
+    row.push(r.atu.carreta, r.atu.e1, r.atu.e2, r.atu.e3);
+    const base = (r.numero||('rec'+r.id));
+    row.push(r.central, r.obs, r.registrado, r.fotoAntes?base+'_antes.jpg':'', r.fotoDepois?base+'_depois.jpg':'');
+    row.push(r.fotoMec?base+'_medidor_mec.jpg':'', r.fotoEle?base+'_medidor_ele.jpg':'', r.fotoExtra?base+'_extra.jpg':'', r.obsExtra||'');
+    lines.push(row.map(csvCell).join(';'));
+  });
+  const csv = '﻿' + lines.join('\r\n');
+  baixar(new Blob([csv],{type:'text/csv;charset=utf-8'}), 'controles_medicao_'+hoje()+'.csv');
+  toast(recs.length+' controle(s) exportado(s)');
+}
+async function exportFotos(){
+  const recs = await allRecs();
+  let n=0;
+  for(const r of recs){
+    const base=(r.numero||('rec'+r.id));
+    const items=[['fotoAntes','_antes.jpg'],['fotoDepois','_depois.jpg'],['fotoMec','_medidor_mec.jpg'],['fotoEle','_medidor_ele.jpg'],['fotoExtra','_extra.jpg']];
+    for(const item of items){
+      const campo=item[0], suf=item[1];
+      if(r[campo]){ baixar(dataURLtoBlob(r[campo]), base+suf); n++; await sleep(400); }
+    }
+  }
+  toast(n?n+' foto(s) exportada(s)':'Sem fotos');
+}
+function dataURLtoBlob(d){ const parts=d.split(','); const mime=parts[0].match(/:(.*?);/)[1]; const bin=atob(parts[1]); const arr=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i); return new Blob([arr],{type:mime}); }
+function baixar(blob, nome){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); }
+function hoje(){ return new Date().toISOString().slice(0,10).replace(/-/g,''); }
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+// ---------- UI ----------
+function showTab(t){
+  const isForm = t==='form';
+  document.getElementById('viewForm').classList.toggle('hidden', !isForm);
+  document.getElementById('viewList').classList.toggle('hidden', isForm);
+  document.getElementById('formActions').style.display = isForm?'flex':'none';
+  document.getElementById('tabForm').classList.toggle('active', isForm);
+  document.getElementById('tabList').classList.toggle('active', !isForm);
+  if(!isForm) refreshList();
+}
+let toastT;
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
+
+// ---------- cadastros (lê cadastros.xlsx) ----------
+async function carregarCadastros(){
+  try{
+    if(typeof XLSX==='undefined') return;
+    const resp = await fetch('cadastros.xlsx', {cache:'no-store'});
+    if(!resp.ok) return;
+    const buf = await resp.arrayBuffer();
+    const wb = XLSX.read(new Uint8Array(buf), {type:'array'});
+    preencherLista('listaClientes', wb, 'Clientes');
+    preencherLista('listaPlacas', wb, 'Placas');
+    preencherLista('listaCarretas', wb, 'Carretas');
+  }catch(e){ /* sem cadastro: campos seguem livres */ }
+}
+function preencherLista(idDatalist, wb, aba){
+  const ws = wb.Sheets[aba]; if(!ws) return;
+  const rows = XLSX.utils.sheet_to_json(ws, {header:1});
+  const dl = document.getElementById(idDatalist); if(!dl) return;
+  const vals = [];
+  rows.slice(1).forEach(r => { const v=(r[0]==null?'':String(r[0]).trim()); if(v) vals.push(v); });
+  dl.innerHTML = vals.map(v=>'<option value="'+v.replace(/"/g,'&quot;')+'"></option>').join('');
+}
+
+// ---------- start ----------
+(async ()=>{
+  await openDB();
+  initSig('sigCliente'); initSig('sigLogas');
+  await carregarCadastros();
+  await sugerirNumero();
+  await refreshList();
+  if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+})();
+</script>
+</body>
+</html>
